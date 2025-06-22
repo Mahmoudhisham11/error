@@ -1,0 +1,99 @@
+.main {
+    width: 100%;
+    min-height: 100vh;
+    padding: 20px 2%;
+}
+.navigation {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+.navigation input {
+    width: 80%;
+    border: 1px solid black;
+    outline: none;
+    border-radius: 8px;
+    font-size: 18px;
+    padding: 5px;
+}
+.navigation button {
+    width: 150px;
+    height: 40px;
+    background-color: var(--main-color);
+    color: white;
+    border-radius: 8px;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+}
+.tableContainer {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: start;
+    padding: 70px 0;
+}
+.addContainer {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 50px;
+}
+.addContainer button {
+    width: 100%;
+    font-size: 20px;
+    color: whitesmoke;
+    background-color: var(--black-color);
+    border: none;
+    padding: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.editContainer {
+    width: 90%;
+    min-height: 500px;
+    background-color: white;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px 2%;
+}
+.editBtn {
+    width: 100%;
+    background-color: var(--black-color);
+    color: whitesmoke;
+    border: none;
+    font-size: 20px;
+    padding: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.title {
+    width: 100%;
+    position: relative;
+}
+.title button {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border: none;
+    background-color: transparent;
+    font-size: 20px;
+    cursor: pointer;
+}
+.inputDiv {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
