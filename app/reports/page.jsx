@@ -17,19 +17,22 @@ function Reports() {
 
 
     useEffect(() => {
-        const fetchReportsByDate = async () => {
-            if (!selectedDate) return;
-            const q = query(collection(db, "reports"), where("date", "==", selectedDate));
-            const querySnapshot = await getDocs(q);
-            const reportsArray = [];
-            querySnapshot.forEach((doc) => {
-            reportsArray.push({ ...doc.data(), id: doc.id });
-            });
-
-            setReports(reportsArray);
-        };
-
-        fetchReportsByDate();
+        if(typeof window !== 'undefined') {
+            const storageShop = localStorage.getItem('shop')
+            const fetchReportsByDate = async () => {
+                if (!selectedDate) return;
+                const q = query(collection(db, "reports"), where("date", "==", selectedDate), where('shop', '==', storageShop));
+                const querySnapshot = await getDocs(q);
+                const reportsArray = [];
+                querySnapshot.forEach((doc) => {
+                reportsArray.push({ ...doc.data(), id: doc.id });
+                });
+    
+                setReports(reportsArray);
+            };
+    
+            fetchReportsByDate();
+        }
     }, [selectedDate]);
 
     useEffect(() => {

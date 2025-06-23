@@ -170,7 +170,7 @@ function Cards() {
                                         <td>{card.userName}</td>
                                         <td>{card.phone}</td>
                                         <td>{card.depositLimit}</td>
-                                        <td>{card.withdrawLimit}</td>
+                                        <td>{Number(card.withdrawLimit - Number(card.amount))}</td>
                                         <td>{card.amount}</td>
                                         <td>{card.number}</td>
                                         <td className="actions">
