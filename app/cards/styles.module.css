@@ -28,13 +28,17 @@
     font-size: 20px;
     cursor: pointer;
 }
+.totalContainer {
+    width: 100%;
+    margin: 20px;
+}
 .tableContainer {
     width: 100%;
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: start;
-    padding: 70px 0;
+    padding: 20px 0;
 }
 .addContainer {
     width: 100%;

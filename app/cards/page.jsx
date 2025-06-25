@@ -23,6 +23,7 @@ function Cards() {
     const [shop, setShop] = useState('')
     const [search, setSearch] = useState('')
     const [deposit, setDeposit] = useState('')
+    const [total, setTotl] = useState(0)
     const [withdraw, setWithdraw] = useState('')
 
 
@@ -50,6 +51,13 @@ function Cards() {
             return () => unsunbscribe() 
         }
     }, [search])
+
+    useEffect(() => {
+        const subTotal = cards.reduce((acc, card) => {
+            return acc + Number(card.amount)
+        }, 0)
+        setTotl(subTotal)
+    }, [cards])
 
     const handleAddPhone = async() => {
         if(!userName && !number && !phone && !amount) {
@@ -149,6 +157,9 @@ function Cards() {
                             <button key={index} onClick={() => `${setActive(index)} ${setAdd(index === 0 ? false : true)}`} style={{backgroundColor: active === index ? 'var(--main-color)' : 'var(--black-color)'}} >{btn}</button>
                         )
                     })}
+                </div>
+                <div className={styles.totalContainer}>
+                    <h2>اجمالي الرصيد : {total} جنية</h2>  
                 </div>
                 <div className={styles.tableContainer} style={{display: add ? 'none' : 'flex'}}>
                     <table>

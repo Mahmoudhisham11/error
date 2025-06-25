@@ -61,7 +61,7 @@ function Main() {
             const cardDoc = querySnapshot.docs[0];
             const cardData = cardDoc.data();
             setDeposit(cardData.depositLimit);
-            setWithdraw(cardData.withdrawLimit);
+            setWithdraw(Number(cardData.withdrawLimit) - Number(cardData.amount));
             setCardAmount(cardData.amount);
         }
         if (!value) {
@@ -82,16 +82,8 @@ function Main() {
                 shop,
                 type: 'ارسال',
                 date: new Date().toISOString().split("T")[0]
-            });
-            await addDoc(collection(db, 'reports'), {
-                phone,
-                amount,
-                commation,
-                shop,
-                type: 'ارسال',
-                date: new Date().toISOString().split("T")[0]
-            });
-            const q = query(collection(db, 'cards'), where('shop', '==', shop));
+            }); 
+            const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
             const querySnapshot = await getDocs(q);
             if (!querySnapshot.empty) {
                 const cardDoc = querySnapshot.docs[0];
@@ -120,15 +112,7 @@ function Main() {
                 type: 'استلام',
                 date: new Date().toISOString().split("T")[0]
             });
-            await addDoc(collection(db, 'reports'), {
-                phone,
-                amount,
-                commation,
-                shop,
-                type: 'استلام',
-                date: new Date().toISOString().split("T")[0]
-            });
-            const q = query(collection(db, 'cards'), where('shop', '==', shop));
+            const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
             const querySnapshot = await getDocs(q);
             if (!querySnapshot.empty) {
                 const cardDoc = querySnapshot.docs[0];
@@ -145,16 +129,30 @@ function Main() {
         }
     };
 
-    const handleDeleteDay = async () => {
-        const confirmDelete = window.confirm("هل تريد تقفيل اليوم");
-        if (!confirmDelete) return;
-        const querySnapshot = await getDocs(collection(db, "operations"));
-        const deletePromises = querySnapshot.docs.map((docSnap) =>
-            deleteDoc(doc(db, "operations", docSnap.id))
-        );
-        await Promise.all(deletePromises);
-        alert("تم تقفيل اليوم بنجاح ✅");
-    };
+const handleDeleteDay = async () => {
+    const confirmDelete = window.confirm("هل تريد تقفيل اليوم");
+    if (!confirmDelete) return;
+
+    const querySnapshot = await getDocs(collection(db, "operations"));
+
+    // ✅ أضف العمليات إلى reports قبل الحذف
+    const addToReports = querySnapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        return addDoc(collection(db, "reports"), {
+            ...data,
+            date: new Date().toISOString().split("T")[0]
+        });
+    });
+
+    // ✅ حذف العمليات
+    const deletePromises = querySnapshot.docs.map((docSnap) =>
+        deleteDoc(doc(db, "operations", docSnap.id))
+    );
+
+    await Promise.all([...addToReports, ...deletePromises]);
+    alert("تم تقفيل اليوم بنجاح ✅");
+};
+
 
     // 🔁 ربط رقم الخط بقيمته
     const phoneToAmountMap = {};
@@ -202,11 +200,11 @@ function Main() {
                     <div className={styles.amoutContainer}>
                         <div className="inputContainer">
                             <label> يمكن ارسال :</label>
-                            <input type="number" value={withdraw} disabled readOnly />
+                            <input type="number" value={deposit} disabled readOnly />
                         </div>
                         <div className="inputContainer">
                             <label>يمكن استلام :</label>
-                            <input type="number" value={deposit} disabled readOnly />
+                            <input type="number" value={withdraw} disabled readOnly />
                         </div>
                         <div className="inputContainer">
                             <label> رصيد الخط :</label>
