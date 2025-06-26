@@ -50,6 +50,7 @@ function Reports() {
                 <div className="inputContainer">
                     <label>تاريخ التقرير : </label>
                     <input type="date" onChange={(e) => setSelectedDate(e.target.value)}/>
+                    <button onClick={() => window.print()}>حفظ PDF</button>
                 </div>
                 <div className={styles.tableContainer}>
                     <table>

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import SideBar from "../SideBar/page";
 import styles from "./styles.module.css";
-import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { db } from "@/app/firebase";
 import { FaRegTrashAlt } from "react-icons/fa";
 
@@ -17,6 +17,7 @@ function Main() {
     const [withdraw, setWithdraw] = useState(0);
     const [cardAmount, setCardAmount] = useState(0);
     const [total, setTotal] = useState(0);
+    const [type, setType] = useState('ارسال'); // 👈 نوع العملية
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -71,109 +72,129 @@ function Main() {
         }
     };
 
-    const handleSend = async () => {
+    const handleOperation = async () => {
         if (!phone || !amount || !commation) {
             alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
-        } else {
-            await addDoc(collection(db, 'operations'), {
-                phone,
-                amount,
-                commation,
-                shop,
-                type: 'ارسال',
-                date: new Date().toISOString().split("T")[0]
-            }); 
-            const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const cardDoc = querySnapshot.docs[0];
-                const cardRef = doc(db, 'cards', cardDoc.id);
-                const cardData = cardDoc.data();
+            return;
+        }
+
+        await addDoc(collection(db, 'operations'), {
+            phone,
+            amount,
+            commation,
+            shop,
+            type,
+            date: new Date().toISOString().split("T")[0]
+        });
+
+        const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const cardDoc = querySnapshot.docs[0];
+            const cardRef = doc(db, 'cards', cardDoc.id);
+            const cardData = cardDoc.data();
+
+            if (type === 'ارسال') {
                 await updateDoc(cardRef, {
                     amount: Number(cardData.amount) - Number(amount),
                     depositLimit: Number(cardData.depositLimit) - Number(amount)
                 });
-                setPhone('');
-                setAmount('');
-                setCommation('');
-            }
-        }
-    };
-
-    const handleGet = async () => {
-        if (!phone || !amount || !commation) {
-            alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
-        } else {
-            await addDoc(collection(db, 'operations'), {
-                phone,
-                amount,
-                commation,
-                shop,
-                type: 'استلام',
-                date: new Date().toISOString().split("T")[0]
-            });
-            const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const cardDoc = querySnapshot.docs[0];
-                const cardRef = doc(db, 'cards', cardDoc.id);
-                const cardData = cardDoc.data();
+            } else if (type === 'استلام') {
                 await updateDoc(cardRef, {
                     amount: Number(cardData.amount) + Number(amount),
                     withdrawLimit: Number(cardData.withdrawLimit) - Number(amount)
                 });
-                setPhone('');
-                setAmount('');
-                setCommation('');
             }
+
+            setPhone('');
+            setAmount('');
+            setCommation('');
         }
     };
 
-const handleDeleteDay = async () => {
-    const confirmDelete = window.confirm("هل تريد تقفيل اليوم");
-    if (!confirmDelete) return;
+    const handleDeleteOperation = async (id) => {
+        const operationRef = doc(db, 'operations', id);
+        const operationSnap = await getDoc(operationRef);
+        const operation = operationSnap.data();
 
-    const querySnapshot = await getDocs(collection(db, "operations"));
+        const cardQuery = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', operation.phone));
+        const cardSnap = await getDocs(cardQuery);
 
-    // ✅ أضف العمليات إلى reports قبل الحذف
-    const addToReports = querySnapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        return addDoc(collection(db, "reports"), {
-            ...data,
-            date: new Date().toISOString().split("T")[0]
+        if (!cardSnap.empty) {
+            const cardDoc = cardSnap.docs[0];
+            const cardRef = doc(db, 'cards', cardDoc.id);
+            const cardData = cardDoc.data();
+
+            let newAmount = Number(cardData.amount);
+            let newDepositLimit = Number(cardData.depositLimit);
+            let newWithdrawLimit = Number(cardData.withdrawLimit);
+
+            if (operation.type === 'ارسال') {
+                newAmount += Number(operation.amount);
+                newDepositLimit += Number(operation.amount);
+            } else if (operation.type === 'استلام') {
+                newAmount -= Number(operation.amount);
+                newWithdrawLimit += Number(operation.amount);
+            }
+
+            await updateDoc(cardRef, {
+                amount: newAmount,
+                depositLimit: newDepositLimit,
+                withdrawLimit: newWithdrawLimit
+            });
+        }
+
+        await deleteDoc(operationRef);
+        alert("تم حذف العملية ✅");
+    };
+
+    const handleDeleteDay = async () => {
+        const confirmDelete = window.confirm("هل تريد تقفيل اليوم");
+        if (!confirmDelete) return;
+
+        const querySnapshot = await getDocs(collection(db, "operations"));
+
+        const addToReports = querySnapshot.docs.map((docSnap) => {
+            const data = docSnap.data();
+            return addDoc(collection(db, "reports"), {
+                ...data,
+                date: new Date().toISOString().split("T")[0]
+            });
         });
-    });
 
-    // ✅ حذف العمليات
-    const deletePromises = querySnapshot.docs.map((docSnap) =>
-        deleteDoc(doc(db, "operations", docSnap.id))
-    );
+        const deletePromises = querySnapshot.docs.map((docSnap) =>
+            deleteDoc(doc(db, "operations", docSnap.id))
+        );
 
-    await Promise.all([...addToReports, ...deletePromises]);
-    alert("تم تقفيل اليوم بنجاح ✅");
-};
+        await Promise.all([...addToReports, ...deletePromises]);
+        alert("تم تقفيل اليوم بنجاح ✅");
+    };
 
-
-    // 🔁 ربط رقم الخط بقيمته
     const phoneToAmountMap = {};
     cards.forEach(card => {
         phoneToAmountMap[card.phone] = card.amount;
     });
 
-    const handleDeleteOperation = async(id) => {
-        await deleteDoc(doc(db, 'operations', id))
-    }
+    const netAmount = type === "ارسال"
+        ? Number(amount) + Number(commation)
+        : Number(amount) - Number(commation);
 
     return (
         <div className="main">
             <SideBar />
             <div className={styles.mainContainer}>
                 <div className={styles.btnsContainer}>
-                    <button onClick={handleSend}>ارسال رصيد</button>
-                    <button onClick={handleGet}>استلام رصيد</button>
+                    <button onClick={handleOperation}>{type === "ارسال" ? "ارسال رصيد" : "استلام رصيد"}</button>
                     <button onClick={handleDeleteDay}>تقفيل اليوم</button>
                 </div>
                 <div className={styles.content}>
+                    <div className="inputContainer">
+                        <label>نوع العملية:</label>
+                        <select value={type} onChange={(e) => setType(e.target.value)}>
+                            <option value="ارسال">ارسال</option>
+                            <option value="استلام">استلام</option>
+                        </select>
+                    </div>
                     <div className="inputContainer">
                         <label>رقم الخط :</label>
                         <input list="numbers" type="number" value={phone} placeholder="احبث عن رقم الخط" onChange={handlePhoneChande} />
@@ -193,8 +214,8 @@ const handleDeleteDay = async () => {
                             <input type="number" value={commation} placeholder="اضف العمولة" onChange={(e) => setCommation(e.target.value)} />
                         </div>
                         <div className="inputContainer">
-                            <label> صافي المبلغ :</label>
-                            <input type="number" value={Number(amount) - Number(commation)} disabled readOnly />
+                            <label>صافي المبلغ :</label>
+                            <input type="number" value={netAmount} readOnly disabled />
                         </div>
                     </div>
                     <div className={styles.amoutContainer}>
@@ -219,7 +240,7 @@ const handleDeleteDay = async () => {
                                     <th>نوع العملية</th>
                                     <th>المبلغ</th>
                                     <th>العمولة</th>
-                                    <th>اجمالي المبلغ</th>
+                                    <th>صافي المبلغ</th>
                                     <th>رصيد الخط</th>
                                     <th>التفاعل</th>
                                 </tr>
@@ -231,7 +252,12 @@ const handleDeleteDay = async () => {
                                         <td>{operation.type}</td>
                                         <td>{operation.amount}</td>
                                         <td>{operation.commation}</td>
-                                        <td>{Number(operation.amount) - Number(operation.commation)}</td>
+                                        <td>
+                                            {operation.type === "ارسال"
+                                                ? Number(operation.amount) + Number(operation.commation)
+                                                : Number(operation.amount) - Number(operation.commation)
+                                            }
+                                        </td>
                                         <td>{phoneToAmountMap[operation.phone] || 0}</td>
                                         <td className="actions">
                                             <button onClick={() => handleDeleteOperation(operation.id)}><FaRegTrashAlt /></button>

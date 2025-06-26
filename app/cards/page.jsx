@@ -2,10 +2,9 @@
 import SideBar from "@/components/SideBar/page";
 import styles from "./styles.module.css";
 import { useEffect, useState } from "react";
-import { FaRegTrashAlt } from "react-icons/fa";
-import { FaPen } from "react-icons/fa";
+import { FaRegTrashAlt, FaPen } from "react-icons/fa";
 import { IoMdCloseCircleOutline } from "react-icons/io";
-import { addDoc, collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, onSnapshot, query, updateDoc, where, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 
 function Cards() {
@@ -23,9 +22,8 @@ function Cards() {
     const [shop, setShop] = useState('')
     const [search, setSearch] = useState('')
     const [deposit, setDeposit] = useState('')
-    const [total, setTotl] = useState(0)
     const [withdraw, setWithdraw] = useState('')
-
+    const [total, setTotl] = useState(0)
 
     useEffect(() => {
         if(typeof window !== "undefined") {
@@ -35,17 +33,35 @@ function Cards() {
                 setShop(storageShop)
                 setName(storageName)
             }
+
             let q;
             if(search !== '') {
                 q = query(collection(db, 'cards'), where('shop', '==', storageShop), where('phone', '==', search))
-            }else {
-                 q = query(collection(db, 'cards'), where('shop', '==', storageShop))
+            } else {
+                q = query(collection(db, 'cards'), where('shop', '==', storageShop))
             }
-            const unsunbscribe = onSnapshot(q, (querySnapshot) => {
+
+            const unsunbscribe = onSnapshot(q, async (querySnapshot) => {
                 const cardsArray = []
-                querySnapshot.forEach((doc) => {
-                    cardsArray.push({...doc.data(), id: doc.id})
-                })
+                const now = new Date()
+                const currentMonth = now.getMonth()
+
+                for (const docSnap of querySnapshot.docs) {
+                    const card = { ...docSnap.data(), id: docSnap.id }
+                    const lastReset = card.lastReset ? new Date(card.lastReset).getMonth() : null
+                    if (lastReset !== currentMonth) {
+                        const cardRef = doc(db, 'cards', docSnap.id)
+                        await updateDoc(cardRef, {
+                            depositLimit: card.originalDepositLimit,
+                            withdrawLimit: card.originalWithdrawLimit,
+                            lastReset: new Date().toISOString()
+                        })
+                        card.depositLimit = card.originalDepositLimit
+                        card.withdrawLimit = card.originalWithdrawLimit
+                        card.lastReset = new Date().toISOString()
+                    }
+                    cardsArray.push(card)
+                }
                 setCards(cardsArray)
             })
             return () => unsunbscribe() 
@@ -53,16 +69,14 @@ function Cards() {
     }, [search])
 
     useEffect(() => {
-        const subTotal = cards.reduce((acc, card) => {
-            return acc + Number(card.amount)
-        }, 0)
+        const subTotal = cards.reduce((acc, card) => acc + Number(card.amount), 0)
         setTotl(subTotal)
     }, [cards])
 
     const handleAddPhone = async() => {
-        if(!userName && !number && !phone && !amount) {
-            alert('برجاء اخال كل البيانات')
-        }else {
+        if(!userName || !number || !phone || !amount || !deposit || !withdraw) {
+            alert('برجاء ادخال كل البيانات')
+        } else {
             await addDoc(collection(db, 'cards'), {
                 userName,
                 name,
@@ -72,6 +86,9 @@ function Cards() {
                 shop,
                 depositLimit: deposit,
                 withdrawLimit: withdraw,
+                originalDepositLimit: deposit,
+                originalWithdrawLimit: withdraw,
+                lastReset: new Date().toISOString()
             })
             alert("تم اضافة الخط بنجاح")
             setUserName('')
@@ -83,12 +100,10 @@ function Cards() {
         }
     }
 
-    // HANDLE DELETE CARD 
     const handleDelete = async(id) => {
         await deleteDoc(doc(db, 'cards', id))
     }
-    
-    // HANDLE EDIT CARD 
+
     const handleEdit = async(id, userName, phone, amount, number) => {
         setId(id)
         setUserName(userName)
@@ -98,7 +113,6 @@ function Cards() {
         setOpenEdit(true)
     }
 
-    // HANDLE UPDATE CARD
     const handleUpdate = async() => {
         await updateDoc(doc(db, 'cards', id), {
             userName,
@@ -114,7 +128,7 @@ function Cards() {
         setNumber("")
     }
 
-    return(
+    return (
         <div className="main">
             <div className="boxShadow" style={{display: openEdit ? 'flex' : 'none'}}>
                 <div className={styles.editContainer}>
@@ -146,17 +160,16 @@ function Cards() {
                 <div className={styles.navigation}>
                     <input list="numbers" type="number" placeholder="ابحث عن الرقم" onChange={(e) => setSearch(e.target.value)} />
                     <datalist id="numbers">
-                        {cards.map(card => {
-                            return(
-                                <option key={card.id} value={card.phone}/>
-                            )
-                        })}
+                        {cards.map(card => (
+                            <option key={card.id} value={card.phone}/>
+                        ))}
                     </datalist>
-                    {btns.map((btn, index) => {
-                        return(
-                            <button key={index} onClick={() => `${setActive(index)} ${setAdd(index === 0 ? false : true)}`} style={{backgroundColor: active === index ? 'var(--main-color)' : 'var(--black-color)'}} >{btn}</button>
-                        )
-                    })}
+                    {btns.map((btn, index) => (
+                        <button
+                            key={index}
+                            onClick={() => `${setActive(index)} ${setAdd(index === 1)}`}
+                            style={{backgroundColor: active === index ? 'var(--main-color)' : 'var(--black-color)'}}>{btn}</button>
+                    ))}
                 </div>
                 <div className={styles.totalContainer}>
                     <h2>اجمالي الرصيد : {total} جنية</h2>  
@@ -175,23 +188,20 @@ function Cards() {
                             </tr>
                         </thead>
                         <tbody>
-                            {cards.map(card => {
-                                return(
-                                    <tr key={card.id}>
-                                        <td>{card.userName}</td>
-                                        <td>{card.phone}</td>
-                                        <td>{card.depositLimit}</td>
-                                        <td>{Number(card.withdrawLimit - Number(card.amount))}</td>
-                                        <td>{card.amount}</td>
-                                        <td>{card.number}</td>
-                                        <td className="actions">
-                                            <button onClick={() => handleEdit(card.id, card.userName, card.phone, card.amount, card.number)}><FaPen/></button>
-                                            <button onClick={() => handleDelete(card.id)}><FaRegTrashAlt/></button>
-                                        </td>
-                                    </tr>
-                                )
-                            })}
-
+                            {cards.map(card => (
+                                <tr key={card.id}>
+                                    <td>{card.userName}</td>
+                                    <td>{card.phone}</td>
+                                    <td>{card.depositLimit}</td>
+                                    <td>{Number(card.withdrawLimit - Number(card.amount))}</td>
+                                    <td>{card.amount}</td>
+                                    <td>{card.number}</td>
+                                    <td className="actions">
+                                        <button onClick={() => handleEdit(card.id, card.userName, card.phone, card.amount, card.number)}><FaPen/></button>
+                                        <button onClick={() => handleDelete(card.id)}><FaRegTrashAlt/></button>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
