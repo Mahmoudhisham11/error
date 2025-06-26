@@ -77,6 +77,8 @@ function SideBar() {
   ];
 
   const handleLogout = () => {
+    const confirmDelete = window.confirm("هل تريد تسجيل الخروج");
+    if (!confirmDelete) return;
     if(typeof window !== 'undefined') {
       localStorage.clear()
       window.location.reload()

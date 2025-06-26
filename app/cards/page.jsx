@@ -74,7 +74,7 @@ function Cards() {
     }, [cards])
 
     const handleAddPhone = async() => {
-        if(!userName || !number || !phone || !amount || !deposit || !withdraw) {
+        if(!userName || !phone || !amount || !deposit || !withdraw) {
             alert('برجاء ادخال كل البيانات')
         } else {
             await addDoc(collection(db, 'cards'), {

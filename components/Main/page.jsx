@@ -72,81 +72,135 @@ function Main() {
         }
     };
 
-    const handleOperation = async () => {
-        if (!phone || !amount || !commation) {
-            alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
-            return;
-        }
+const handleOperation = async () => {
+    if (!phone || !amount || !commation) {
+        alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
+        return;
+    }
 
-        await addDoc(collection(db, 'operations'), {
-            phone,
-            amount,
-            commation,
-            shop,
-            type,
-            date: new Date().toISOString().split("T")[0]
-        });
+    const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+        const cardDoc = querySnapshot.docs[0];
+        const cardRef = doc(db, 'cards', cardDoc.id);
+        const cardData = cardDoc.data();
 
-        const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            const cardDoc = querySnapshot.docs[0];
-            const cardRef = doc(db, 'cards', cardDoc.id);
-            const cardData = cardDoc.data();
+        const amountNum = Number(amount);
 
-            if (type === 'ارسال') {
-                await updateDoc(cardRef, {
-                    amount: Number(cardData.amount) - Number(amount),
-                    depositLimit: Number(cardData.depositLimit) - Number(amount)
-                });
-            } else if (type === 'استلام') {
-                await updateDoc(cardRef, {
-                    amount: Number(cardData.amount) + Number(amount),
-                    withdrawLimit: Number(cardData.withdrawLimit) - Number(amount)
-                });
+        if (type === 'ارسال') {
+            // ✅ تحقق من الرصيد
+            if (amountNum > Number(cardData.amount)) {
+                alert("الرصيد غير كافي لتنفيذ عملية الإرسال");
+                return;
             }
 
-            setPhone('');
-            setAmount('');
-            setCommation('');
-        }
-    };
-
-    const handleDeleteOperation = async (id) => {
-        const operationRef = doc(db, 'operations', id);
-        const operationSnap = await getDoc(operationRef);
-        const operation = operationSnap.data();
-
-        const cardQuery = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', operation.phone));
-        const cardSnap = await getDocs(cardQuery);
-
-        if (!cardSnap.empty) {
-            const cardDoc = cardSnap.docs[0];
-            const cardRef = doc(db, 'cards', cardDoc.id);
-            const cardData = cardDoc.data();
-
-            let newAmount = Number(cardData.amount);
-            let newDepositLimit = Number(cardData.depositLimit);
-            let newWithdrawLimit = Number(cardData.withdrawLimit);
-
-            if (operation.type === 'ارسال') {
-                newAmount += Number(operation.amount);
-                newDepositLimit += Number(operation.amount);
-            } else if (operation.type === 'استلام') {
-                newAmount -= Number(operation.amount);
-                newWithdrawLimit += Number(operation.amount);
-            }
+            await addDoc(collection(db, 'operations'), {
+                phone,
+                amount,
+                commation,
+                shop,
+                type,
+                date: new Date().toISOString().split("T")[0]
+            });
 
             await updateDoc(cardRef, {
-                amount: newAmount,
-                depositLimit: newDepositLimit,
-                withdrawLimit: newWithdrawLimit
+                amount: Number(cardData.amount) - amountNum,
+                depositLimit: Number(cardData.depositLimit) - amountNum
+            });
+
+        } else if (type === 'استلام') {
+            await addDoc(collection(db, 'operations'), {
+                phone,
+                amount,
+                commation,
+                shop,
+                type,
+                date: new Date().toISOString().split("T")[0]
+            });
+
+            await updateDoc(cardRef, {
+                amount: Number(cardData.amount) + amountNum,
+                withdrawLimit: Number(cardData.withdrawLimit) - amountNum
             });
         }
 
+        // Reset fields
+        setPhone('');
+        setAmount('');
+        setCommation('');
+    }
+};
+
+
+
+const handleDeleteOperation = async (id) => {
+    try {
+        // 1. هات بيانات العملية
+        const operationRef = doc(db, 'operations', id);
+        const operationSnap = await getDoc(operationRef);
+
+        if (!operationSnap.exists()) {
+            alert("العملية غير موجودة");
+            return;
+        }
+
+        const operation = operationSnap.data();
+
+        // 2. هات بيانات الخط
+        const cardQuery = query(
+            collection(db, 'cards'),
+            where('shop', '==', shop),
+            where('phone', '==', operation.phone)
+        );
+        const cardSnap = await getDocs(cardQuery);
+
+        if (cardSnap.empty) {
+            alert("لم يتم العثور على الخط المرتبط بالعملية");
+            return;
+        }
+
+        const cardDoc = cardSnap.docs[0];
+        const cardRef = doc(db, 'cards', cardDoc.id);
+        const cardData = cardDoc.data();
+
+        let newAmount = Number(cardData.amount);
+        let newDepositLimit = Number(cardData.depositLimit);
+        let newWithdrawLimit = Number(cardData.withdrawLimit);
+        const operationAmount = Number(operation.amount);
+
+        if (operation.type === 'ارسال') {
+            // لو حذف عملية إرسال: زود الرصيد وحد الإرسال
+            newAmount += operationAmount;
+            newDepositLimit += operationAmount;
+
+        } else if (operation.type === 'استلام') {
+            // تحقق إن الرصيد يسمح بطرح العملية
+            if (newAmount - operationAmount < 0) {
+                alert("لا يمكن حذف العملية لأن ذلك سيؤدي إلى رصيد سالب.");
+                return;
+            }
+            newAmount -= operationAmount;
+            newWithdrawLimit += operationAmount;
+        }
+
+        // 3. تحديث بيانات الخط
+        await updateDoc(cardRef, {
+            amount: newAmount,
+            depositLimit: newDepositLimit,
+            withdrawLimit: newWithdrawLimit
+        });
+
+        // 4. حذف العملية
         await deleteDoc(operationRef);
-        alert("تم حذف العملية ✅");
-    };
+        alert("تم حذف العملية وتعديل الرصيد بنجاح ✅");
+
+    } catch (error) {
+        console.error("حدث خطأ أثناء حذف العملية:", error);
+        alert("حدث خطأ أثناء حذف العملية ❌");
+    }
+};
+
+
 
     const handleDeleteDay = async () => {
         const confirmDelete = window.confirm("هل تريد تقفيل اليوم");
