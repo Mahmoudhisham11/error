@@ -61,6 +61,7 @@ function Reports() {
                                 <th>المبلغ</th>
                                 <th>العمولة</th>
                                 <th>اجمالي المبلغ</th>
+                                <th>اسم العميل</th>
                                 <th>التاريخ</th>
                             </tr>
                         </thead>
@@ -73,6 +74,7 @@ function Reports() {
                                             <td>{report.amount}</td>
                                             <td>{report.commation}</td>
                                             <td>{Number(report.amount) - Number(report.commation)}</td>
+                                            <td>{report.name}</td>
                                             <td>{report.date}</td>
                                         </tr>
                                 )

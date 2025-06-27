@@ -17,7 +17,8 @@ function Main() {
     const [withdraw, setWithdraw] = useState(0);
     const [cardAmount, setCardAmount] = useState(0);
     const [total, setTotal] = useState(0);
-    const [type, setType] = useState('ارسال'); // 👈 نوع العملية
+    const [name, setName] = useState('')
+    const [type, setType] = useState('ارسال');
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -72,135 +73,125 @@ function Main() {
         }
     };
 
-const handleOperation = async () => {
-    if (!phone || !amount || !commation) {
-        alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
-        return;
-    }
-
-    const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-        const cardDoc = querySnapshot.docs[0];
-        const cardRef = doc(db, 'cards', cardDoc.id);
-        const cardData = cardDoc.data();
-
-        const amountNum = Number(amount);
-
-        if (type === 'ارسال') {
-            // ✅ تحقق من الرصيد
-            if (amountNum > Number(cardData.amount)) {
-                alert("الرصيد غير كافي لتنفيذ عملية الإرسال");
-                return;
-            }
-
-            await addDoc(collection(db, 'operations'), {
-                phone,
-                amount,
-                commation,
-                shop,
-                type,
-                date: new Date().toISOString().split("T")[0]
-            });
-
-            await updateDoc(cardRef, {
-                amount: Number(cardData.amount) - amountNum,
-                depositLimit: Number(cardData.depositLimit) - amountNum
-            });
-
-        } else if (type === 'استلام') {
-            await addDoc(collection(db, 'operations'), {
-                phone,
-                amount,
-                commation,
-                shop,
-                type,
-                date: new Date().toISOString().split("T")[0]
-            });
-
-            await updateDoc(cardRef, {
-                amount: Number(cardData.amount) + amountNum,
-                withdrawLimit: Number(cardData.withdrawLimit) - amountNum
-            });
-        }
-
-        // Reset fields
-        setPhone('');
-        setAmount('');
-        setCommation('');
-    }
-};
-
-
-
-const handleDeleteOperation = async (id) => {
-    try {
-        // 1. هات بيانات العملية
-        const operationRef = doc(db, 'operations', id);
-        const operationSnap = await getDoc(operationRef);
-
-        if (!operationSnap.exists()) {
-            alert("العملية غير موجودة");
+    const handleOperation = async () => {
+        if (!phone || !amount || !commation) {
+            alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
             return;
         }
 
-        const operation = operationSnap.data();
+        const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const cardDoc = querySnapshot.docs[0];
+            const cardRef = doc(db, 'cards', cardDoc.id);
+            const cardData = cardDoc.data();
 
-        // 2. هات بيانات الخط
-        const cardQuery = query(
-            collection(db, 'cards'),
-            where('shop', '==', shop),
-            where('phone', '==', operation.phone)
-        );
-        const cardSnap = await getDocs(cardQuery);
+            const amountNum = Number(amount);
 
-        if (cardSnap.empty) {
-            alert("لم يتم العثور على الخط المرتبط بالعملية");
-            return;
+            if (type === 'ارسال') {
+                if (amountNum > Number(cardData.amount)) {
+                    alert("الرصيد غير كافي لتنفيذ عملية الإرسال");
+                    return;
+                }
+
+                await addDoc(collection(db, 'operations'), {
+                    phone,
+                    name,
+                    amount,
+                    commation,
+                    shop,
+                    type,
+                    date: new Date().toISOString().split("T")[0]
+                });
+
+                await updateDoc(cardRef, {
+                    amount: Number(cardData.amount) - amountNum,
+                    depositLimit: Number(cardData.depositLimit) - amountNum
+                });
+
+            } else if (type === 'استلام') {
+                await addDoc(collection(db, 'operations'), {
+                    phone,
+                    amount,
+                    name,
+                    commation,
+                    shop,
+                    type,
+                    date: new Date().toISOString().split("T")[0]
+                });
+
+                await updateDoc(cardRef, {
+                    amount: Number(cardData.amount) + amountNum,
+                    withdrawLimit: Number(cardData.withdrawLimit) - amountNum
+                });
+            }
+
+            setPhone('');
+            setAmount('');
+            setCommation('');
         }
+    };
 
-        const cardDoc = cardSnap.docs[0];
-        const cardRef = doc(db, 'cards', cardDoc.id);
-        const cardData = cardDoc.data();
+    const handleDeleteOperation = async (id) => {
+        try {
+            const operationRef = doc(db, 'operations', id);
+            const operationSnap = await getDoc(operationRef);
 
-        let newAmount = Number(cardData.amount);
-        let newDepositLimit = Number(cardData.depositLimit);
-        let newWithdrawLimit = Number(cardData.withdrawLimit);
-        const operationAmount = Number(operation.amount);
-
-        if (operation.type === 'ارسال') {
-            // لو حذف عملية إرسال: زود الرصيد وحد الإرسال
-            newAmount += operationAmount;
-            newDepositLimit += operationAmount;
-
-        } else if (operation.type === 'استلام') {
-            // تحقق إن الرصيد يسمح بطرح العملية
-            if (newAmount - operationAmount < 0) {
-                alert("لا يمكن حذف العملية لأن ذلك سيؤدي إلى رصيد سالب.");
+            if (!operationSnap.exists()) {
+                alert("العملية غير موجودة");
                 return;
             }
-            newAmount -= operationAmount;
-            newWithdrawLimit += operationAmount;
+
+            const operation = operationSnap.data();
+
+            const cardQuery = query(
+                collection(db, 'cards'),
+                where('shop', '==', shop),
+                where('phone', '==', operation.phone)
+            );
+            const cardSnap = await getDocs(cardQuery);
+
+            if (cardSnap.empty) {
+                alert("لم يتم العثور على الخط المرتبط بالعملية");
+                return;
+            }
+
+            const cardDoc = cardSnap.docs[0];
+            const cardRef = doc(db, 'cards', cardDoc.id);
+            const cardData = cardDoc.data();
+
+            let newAmount = Number(cardData.amount);
+            let newDepositLimit = Number(cardData.depositLimit);
+            let newWithdrawLimit = Number(cardData.withdrawLimit);
+            const operationAmount = Number(operation.amount);
+
+            if (operation.type === 'ارسال') {
+                newAmount += operationAmount;
+                newDepositLimit += operationAmount;
+
+            } else if (operation.type === 'استلام') {
+                if (newAmount - operationAmount < 0) {
+                    alert("لا يمكن حذف العملية لأن ذلك سيؤدي إلى رصيد سالب.");
+                    return;
+                }
+                newAmount -= operationAmount;
+                newWithdrawLimit += operationAmount;
+            }
+
+            await updateDoc(cardRef, {
+                amount: newAmount,
+                depositLimit: newDepositLimit,
+                withdrawLimit: newWithdrawLimit
+            });
+
+            await deleteDoc(operationRef);
+            alert("تم حذف العملية وتعديل الرصيد بنجاح ✅");
+
+        } catch (error) {
+            console.error("حدث خطأ أثناء حذف العملية:", error);
+            alert("حدث خطأ أثناء حذف العملية ❌");
         }
-
-        // 3. تحديث بيانات الخط
-        await updateDoc(cardRef, {
-            amount: newAmount,
-            depositLimit: newDepositLimit,
-            withdrawLimit: newWithdrawLimit
-        });
-
-        // 4. حذف العملية
-        await deleteDoc(operationRef);
-        alert("تم حذف العملية وتعديل الرصيد بنجاح ✅");
-
-    } catch (error) {
-        console.error("حدث خطأ أثناء حذف العملية:", error);
-        alert("حدث خطأ أثناء حذف العملية ❌");
-    }
-};
-
-
+    };
 
     const handleDeleteDay = async () => {
         const confirmDelete = window.confirm("هل تريد تقفيل اليوم");
@@ -223,11 +214,6 @@ const handleDeleteOperation = async (id) => {
         await Promise.all([...addToReports, ...deletePromises]);
         alert("تم تقفيل اليوم بنجاح ✅");
     };
-
-    const phoneToAmountMap = {};
-    cards.forEach(card => {
-        phoneToAmountMap[card.phone] = card.amount;
-    });
 
     const netAmount = type === "ارسال"
         ? Number(amount) + Number(commation)
@@ -257,6 +243,10 @@ const handleDeleteOperation = async (id) => {
                                 <option key={card.id} value={card.phone} />
                             ))}
                         </datalist>
+                    </div>
+                    <div className="inputContainer">
+                        <label>اسم العميل :</label>
+                        <input type="text" value={name} placeholder="اسم العميل" onChange={(e) => setName(e.target.value)} />
                     </div>
                     <div className={styles.amoutContainer}>
                         <div className="inputContainer">
@@ -296,6 +286,7 @@ const handleDeleteOperation = async (id) => {
                                     <th>العمولة</th>
                                     <th>صافي المبلغ</th>
                                     <th>رصيد الخط</th>
+                                    <th>اسم العميل</th>
                                     <th>التفاعل</th>
                                 </tr>
                             </thead>
@@ -312,7 +303,22 @@ const handleDeleteOperation = async (id) => {
                                                 : Number(operation.amount) - Number(operation.commation)
                                             }
                                         </td>
-                                        <td>{phoneToAmountMap[operation.phone] || 0}</td>
+                                        
+                                        <td>{(() => {
+                                            let balance = 0;
+                                            const pastOperations = operations.filter(op => op.phone === operation.phone);
+                                            const currentIndex = pastOperations.findIndex(op => op.id === operation.id);
+                                            for (let i = 0; i <= currentIndex; i++) {
+                                                const op = pastOperations[i];
+                                                if (op.type === 'استلام') {
+                                                    balance += Number(op.amount);
+                                                } else if (op.type === 'ارسال') {
+                                                    balance -= Number(op.amount);
+                                                }
+                                            }
+                                            return balance;
+                                        })()}</td>
+                                        <td>{operation.name}</td>
                                         <td className="actions">
                                             <button onClick={() => handleDeleteOperation(operation.id)}><FaRegTrashAlt /></button>
                                         </td>
@@ -321,7 +327,7 @@ const handleDeleteOperation = async (id) => {
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colSpan={7}>صافي الربح اليومي : {total} جنية</td>
+                                    <td colSpan={8}>صافي الربح اليومي : {total} جنية</td>
                                 </tr>
                             </tfoot>
                         </table>

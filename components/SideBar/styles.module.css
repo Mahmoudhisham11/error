@@ -56,3 +56,9 @@
 .logoutBtn:hover {
     background-color: var(--main-color);
 }
+
+@media print {
+    .sideBarContainer {
+        display: none;
+    }
+}
