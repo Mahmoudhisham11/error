@@ -17,7 +17,7 @@ function Main() {
     const [withdraw, setWithdraw] = useState(0);
     const [cardAmount, setCardAmount] = useState(0);
     const [total, setTotal] = useState(0);
-    const [name, setName] = useState('')
+    const [name, setName] = useState('');
     const [type, setType] = useState('ارسال');
 
     useEffect(() => {
@@ -40,6 +40,8 @@ function Main() {
                 querySnapshot.forEach((doc) => {
                     operationsArray.push({ ...doc.data(), id: doc.id });
                 });
+                // تأكد من ترتيب العمليات حسب وقت الإضافة
+                operationsArray.sort((a, b) => new Date(a.date) - new Date(b.date));
                 setOperations(operationsArray);
             });
 
@@ -101,7 +103,7 @@ function Main() {
                     commation,
                     shop,
                     type,
-                    date: new Date().toISOString().split("T")[0]
+                    date: new Date().toISOString()
                 });
 
                 await updateDoc(cardRef, {
@@ -117,7 +119,7 @@ function Main() {
                     commation,
                     shop,
                     type,
-                    date: new Date().toISOString().split("T")[0]
+                    date: new Date().toISOString()
                 });
 
                 await updateDoc(cardRef, {
@@ -291,39 +293,35 @@ function Main() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {operations.map(operation => (
-                                    <tr key={operation.id}>
-                                        <td>{operation.phone}</td>
-                                        <td>{operation.type}</td>
-                                        <td>{operation.amount}</td>
-                                        <td>{operation.commation}</td>
-                                        <td>
-                                            {operation.type === "ارسال"
-                                                ? Number(operation.amount) + Number(operation.commation)
-                                                : Number(operation.amount) - Number(operation.commation)
-                                            }
-                                        </td>
-                                        
-                                        <td>{(() => {
-                                            let balance = 0;
-                                            const pastOperations = operations.filter(op => op.phone === operation.phone);
-                                            const currentIndex = pastOperations.findIndex(op => op.id === operation.id);
-                                            for (let i = 0; i <= currentIndex; i++) {
-                                                const op = pastOperations[i];
-                                                if (op.type === 'استلام') {
-                                                    balance += Number(op.amount);
-                                                } else if (op.type === 'ارسال') {
-                                                    balance -= Number(op.amount);
-                                                }
-                                            }
-                                            return balance;
-                                        })()}</td>
-                                        <td>{operation.name}</td>
-                                        <td className="actions">
-                                            <button onClick={() => handleDeleteOperation(operation.id)}><FaRegTrashAlt /></button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {operations.map((operation, index) => {
+                                    let balance = 0;
+                                    for (let i = 0; i <= index; i++) {
+                                        const op = operations[i];
+                                        if (op.phone === operation.phone) {
+                                            if (op.type === 'استلام') balance += Number(op.amount);
+                                            else if (op.type === 'ارسال') balance -= Number(op.amount);
+                                        }
+                                    }
+
+                                    return (
+                                        <tr key={operation.id}>
+                                            <td>{operation.phone}</td>
+                                            <td>{operation.type}</td>
+                                            <td>{operation.amount}</td>
+                                            <td>{operation.commation}</td>
+                                            <td>{
+                                                operation.type === "ارسال"
+                                                    ? Number(operation.amount) + Number(operation.commation)
+                                                    : Number(operation.amount) - Number(operation.commation)
+                                            }</td>
+                                            <td>{balance}</td>
+                                            <td>{operation.name}</td>
+                                            <td className="actions">
+                                                <button onClick={() => handleDeleteOperation(operation.id)}><FaRegTrashAlt /></button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                             <tfoot>
                                 <tr>
