@@ -178,6 +178,7 @@ function Cards() {
                     <table>
                         <thead>
                             <tr>
+                                <th>التسلسل</th>
                                 <th>اسم المالك</th>
                                 <th>رقم الخط</th>
                                 <th>يمكن ارسال</th>
@@ -188,8 +189,9 @@ function Cards() {
                             </tr>
                         </thead>
                         <tbody>
-                            {cards.map(card => (
+                            {cards.map((card, index) => (
                                 <tr key={card.id}>
+                                    <td>{index + 1}</td>
                                     <td>{card.userName}</td>
                                     <td>{card.phone}</td>
                                     <td>{card.depositLimit}</td>

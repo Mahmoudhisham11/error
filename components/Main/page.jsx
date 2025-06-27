@@ -40,7 +40,6 @@ function Main() {
                 querySnapshot.forEach((doc) => {
                     operationsArray.push({ ...doc.data(), id: doc.id });
                 });
-                // تأكد من ترتيب العمليات حسب وقت الإضافة
                 operationsArray.sort((a, b) => new Date(a.date) - new Date(b.date));
                 setOperations(operationsArray);
             });
@@ -282,6 +281,7 @@ function Main() {
                         <table>
                             <thead>
                                 <tr>
+                                    <th>التسلسل</th>
                                     <th>الرقم المستخدم</th>
                                     <th>نوع العملية</th>
                                     <th>المبلغ</th>
@@ -305,6 +305,7 @@ function Main() {
 
                                     return (
                                         <tr key={operation.id}>
+                                            <td>{index + 1}</td>
                                             <td>{operation.phone}</td>
                                             <td>{operation.type}</td>
                                             <td>{operation.amount}</td>
@@ -325,7 +326,7 @@ function Main() {
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <td colSpan={8}>صافي الربح اليومي : {total} جنية</td>
+                                    <td colSpan={9}>صافي الربح اليومي : {total} جنية</td>
                                 </tr>
                             </tfoot>
                         </table>
