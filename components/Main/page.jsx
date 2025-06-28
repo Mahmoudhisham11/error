@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import SideBar from "../SideBar/page";
 import styles from "./styles.module.css";
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where, orderBy } from "firebase/firestore";
 import { db } from "@/app/firebase";
 import { FaRegTrashAlt } from "react-icons/fa";
 
@@ -89,43 +89,43 @@ function Main() {
 
             const amountNum = Number(amount);
 
+            let newAmount = Number(cardData.amount);
+            let newDeposit = Number(cardData.depositLimit);
+            let newWithdraw = Number(cardData.withdrawLimit);
+
             if (type === 'ارسال') {
-                if (amountNum > Number(cardData.amount)) {
+                if (amountNum > newAmount) {
                     alert("الرصيد غير كافي لتنفيذ عملية الإرسال");
                     return;
                 }
-
-                await addDoc(collection(db, 'operations'), {
-                    phone,
-                    name,
-                    amount,
-                    commation,
-                    shop,
-                    type,
-                    date: new Date().toISOString()
-                });
-
-                await updateDoc(cardRef, {
-                    amount: Number(cardData.amount) - amountNum,
-                    depositLimit: Number(cardData.depositLimit) - amountNum
-                });
+                newAmount -= amountNum;
+                newDeposit -= amountNum;
 
             } else if (type === 'استلام') {
-                await addDoc(collection(db, 'operations'), {
-                    phone,
-                    amount,
-                    name,
-                    commation,
-                    shop,
-                    type,
-                    date: new Date().toISOString()
-                });
-
-                await updateDoc(cardRef, {
-                    amount: Number(cardData.amount) + amountNum,
-                    withdrawLimit: Number(cardData.withdrawLimit) - amountNum
-                });
+                newAmount += amountNum;
+                newWithdraw -= amountNum;
+                if (newWithdraw < 0) {
+                    alert("لا يمكن تنفيذ عملية الاستلام، تجاوز الحد المسموح للاستلام");
+                    return;
+                }
             }
+
+            await addDoc(collection(db, 'operations'), {
+                phone,
+                name,
+                amount,
+                commation,
+                shop,
+                type,
+                date: new Date().toISOString(),
+                amountBefore: cardData.amount
+            });
+
+            await updateDoc(cardRef, {
+                amount: newAmount,
+                depositLimit: newDeposit,
+                withdrawLimit: newWithdraw
+            });
 
             setPhone('');
             setAmount('');
@@ -169,7 +169,6 @@ function Main() {
             if (operation.type === 'ارسال') {
                 newAmount += operationAmount;
                 newDepositLimit += operationAmount;
-
             } else if (operation.type === 'استلام') {
                 if (newAmount - operationAmount < 0) {
                     alert("لا يمكن حذف العملية لأن ذلك سيؤدي إلى رصيد سالب.");
@@ -310,11 +309,9 @@ function Main() {
                                             <td>{operation.type}</td>
                                             <td>{operation.amount}</td>
                                             <td>{operation.commation}</td>
-                                            <td>{
-                                                operation.type === "ارسال"
-                                                    ? Number(operation.amount) + Number(operation.commation)
-                                                    : Number(operation.amount) - Number(operation.commation)
-                                            }</td>
+                                            <td>{operation.type === "ارسال"
+                                                ? Number(operation.amount) + Number(operation.commation)
+                                                : Number(operation.amount) - Number(operation.commation)}</td>
                                             <td>{balance}</td>
                                             <td>{operation.name}</td>
                                             <td className="actions">
