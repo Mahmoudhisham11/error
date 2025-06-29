@@ -185,7 +185,7 @@ function Cards() {
                                 <th>يمكن استقبال</th>
                                 <th>الرصيد الحالي</th>
                                 <th>الرقم القومي</th>
-                                {name !== "محمد شعبان ايرور 3" || "محمد شعبان ايرور 2" || "محمد شعبان ايرور 1" ? <></> : <th>التفاعل</th>}
+                                {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1"].includes(name) ? <></> : <th>التفاعل</th>}
                                 
                             </tr>
                         </thead>
@@ -199,7 +199,7 @@ function Cards() {
                                     <td>{Number(card.withdrawLimit - Number(card.amount))}</td>
                                     <td>{card.amount}</td>
                                     <td>{card.number}</td>
-                                    {name !== "محمد شعبان ايرور 3" || "محمد شعبان ايرور 2" || "محمد شعبان ايرور 1" ?
+                                    {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1"].includes(name) ?
                                         <></>
                                         :
                                     <td className="actions">
@@ -212,7 +212,7 @@ function Cards() {
                         </tbody>
                     </table>
                 </div>
-                {name !== "محمد شعبان ايرور 3" || "محمد شعبان ايرور 2" || "محمد شعبان ايرور 1" ?
+                {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1"].includes(name) ?
                     <></>
                     :
                     <div className={styles.addContainer} style={{display: add ? 'flex' : 'none'}}>
