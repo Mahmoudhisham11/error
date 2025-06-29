@@ -185,7 +185,11 @@ function Cards() {
                                 <th>يمكن استقبال</th>
                                 <th>الرصيد الحالي</th>
                                 <th>الرقم القومي</th>
-                                {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1"].includes(name) ? <></> : <th>التفاعل</th>}
+                                {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1"].includes(name) ? 
+                                    <th>التفاعل</th>
+                                    : 
+                                    <></>
+                                }
                                 
                             </tr>
                         </thead>
@@ -199,13 +203,13 @@ function Cards() {
                                     <td>{Number(card.withdrawLimit - Number(card.amount))}</td>
                                     <td>{card.amount}</td>
                                     <td>{card.number}</td>
-                                    {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1"].includes(name) ?
-                                        <></>
-                                        :
+                                    {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1"].includes(name) ?        
                                     <td className="actions">
                                         <button onClick={() => handleEdit(card.id, card.userName, card.phone, card.amount, card.number)}><FaPen/></button>
                                         <button onClick={() => handleDelete(card.id)}><FaRegTrashAlt/></button>
                                     </td>
+                                        :
+                                        <></>
                                     }
                                 </tr>
                             ))}
@@ -213,8 +217,6 @@ function Cards() {
                     </table>
                 </div>
                 {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1"].includes(name) ?
-                    <></>
-                    :
                     <div className={styles.addContainer} style={{display: add ? 'flex' : 'none'}}>
                         <div className={styles.inputDiv}>
                             <div className="inputContainer">
@@ -248,6 +250,8 @@ function Cards() {
                         </div>
                         <button onClick={handleAddPhone}>اضف الخط</button>
                     </div>
+                    :
+                    <></>
                 }
             </div>
         </div>
