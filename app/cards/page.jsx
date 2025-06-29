@@ -185,7 +185,8 @@ function Cards() {
                                 <th>يمكن استقبال</th>
                                 <th>الرصيد الحالي</th>
                                 <th>الرقم القومي</th>
-                                <th>التفاعل</th>
+                                {name !== "محمد شعبان ايرور 3" || "محمد شعبان ايرور 2" || "محمد شعبان ايرور 1" ? <></> : <th>التفاعل</th>}
+                                
                             </tr>
                         </thead>
                         <tbody>
@@ -198,48 +199,56 @@ function Cards() {
                                     <td>{Number(card.withdrawLimit - Number(card.amount))}</td>
                                     <td>{card.amount}</td>
                                     <td>{card.number}</td>
+                                    {name !== "محمد شعبان ايرور 3" || "محمد شعبان ايرور 2" || "محمد شعبان ايرور 1" ?
+                                        <></>
+                                        :
                                     <td className="actions">
                                         <button onClick={() => handleEdit(card.id, card.userName, card.phone, card.amount, card.number)}><FaPen/></button>
                                         <button onClick={() => handleDelete(card.id)}><FaRegTrashAlt/></button>
                                     </td>
+                                    }
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-                <div className={styles.addContainer} style={{display: add ? 'flex' : 'none'}}>
-                    <div className={styles.inputDiv}>
-                        <div className="inputContainer">
-                            <label>اسم المالك :</label>
-                            <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="ادخل اسم المالك"/>
+                {name !== "محمد شعبان ايرور 3" || "محمد شعبان ايرور 2" || "محمد شعبان ايرور 1" ?
+                    <></>
+                    :
+                    <div className={styles.addContainer} style={{display: add ? 'flex' : 'none'}}>
+                        <div className={styles.inputDiv}>
+                            <div className="inputContainer">
+                                <label>اسم المالك :</label>
+                                <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="ادخل اسم المالك"/>
+                            </div>
+                            <div className="inputContainer">
+                                <label>الرقم القومي :</label>
+                                <input type="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="ادخل الرقم القومي"/>
+                            </div>
                         </div>
-                        <div className="inputContainer">
-                            <label>الرقم القومي :</label>
-                            <input type="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="ادخل الرقم القومي"/>
+                        <div className={styles.inputDiv}>
+                            <div className="inputContainer">
+                                <label>رقم الشريحة :</label>
+                                <input type="number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="ادخل الرقم القومي"/>
+                            </div>
+                            <div className="inputContainer">
+                                <label>الرصيد الحالي :</label>
+                                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="اخل الرصيد الحالي للخط"/>
+                            </div>
                         </div>
+                        <div className={styles.inputDiv}>
+                            <div className="inputContainer">
+                                <label>ليميت الاستلام :</label>
+                                <input type="number" value={withdraw} onChange={(e) => setWithdraw(e.target.value)} placeholder="ادخل ليميت الاستلام"/>
+                            </div>
+                            <div className="inputContainer">
+                                <label>ليميت الارسال :</label>
+                                <input type="number" value={deposit} onChange={(e) => setDeposit(e.target.value)} placeholder="ادخل ليميت الارسال"/>
+                            </div>
+                        </div>
+                        <button onClick={handleAddPhone}>اضف الخط</button>
                     </div>
-                    <div className={styles.inputDiv}>
-                        <div className="inputContainer">
-                            <label>رقم الشريحة :</label>
-                            <input type="number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="ادخل الرقم القومي"/>
-                        </div>
-                        <div className="inputContainer">
-                            <label>الرصيد الحالي :</label>
-                            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="اخل الرصيد الحالي للخط"/>
-                        </div>
-                    </div>
-                    <div className={styles.inputDiv}>
-                        <div className="inputContainer">
-                            <label>ليميت الاستلام :</label>
-                            <input type="number" value={withdraw} onChange={(e) => setWithdraw(e.target.value)} placeholder="ادخل ليميت الاستلام"/>
-                        </div>
-                        <div className="inputContainer">
-                            <label>ليميت الارسال :</label>
-                            <input type="number" value={deposit} onChange={(e) => setDeposit(e.target.value)} placeholder="ادخل ليميت الارسال"/>
-                        </div>
-                    </div>
-                    <button onClick={handleAddPhone}>اضف الخط</button>
-                </div>
+                }
             </div>
         </div>
     )
