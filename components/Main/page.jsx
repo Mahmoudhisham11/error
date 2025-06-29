@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import SideBar from "../SideBar/page";
 import styles from "./styles.module.css";
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where, orderBy } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { db } from "@/app/firebase";
 import { FaRegTrashAlt } from "react-icons/fa";
 
@@ -228,6 +228,7 @@ function Main() {
                     <button onClick={handleDeleteDay}>تقفيل اليوم</button>
                 </div>
                 <div className={styles.content}>
+                    {/* Inputs */}
                     <div className="inputContainer">
                         <label>نوع العملية:</label>
                         <select value={type} onChange={(e) => setType(e.target.value)}>
@@ -293,14 +294,11 @@ function Main() {
                             </thead>
                             <tbody>
                                 {operations.map((operation, index) => {
-                                    let balance = 0;
-                                    for (let i = 0; i <= index; i++) {
-                                        const op = operations[i];
-                                        if (op.phone === operation.phone) {
-                                            if (op.type === 'استلام') balance += Number(op.amount);
-                                            else if (op.type === 'ارسال') balance -= Number(op.amount);
-                                        }
-                                    }
+                                    const balance = operation.amountBefore !== undefined ?
+                                        (operation.type === 'استلام'
+                                            ? Number(operation.amountBefore) + Number(operation.amount)
+                                            : Number(operation.amountBefore) - Number(operation.amount))
+                                        : 0;
 
                                     return (
                                         <tr key={operation.id}>
