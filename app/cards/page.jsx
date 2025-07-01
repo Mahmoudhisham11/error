@@ -134,11 +134,16 @@ function Cards() {
     }
 
     const handleUpdate = async () => {
+        const q = query(collection(db, 'cards'), where('shop', '==', shop))
+        const querySnapshot = await getDocs(q)
+        const cardDoc = querySnapshot.docs[0]
+        const cardData = cardDoc.data()
         await updateDoc(doc(db, 'cards', id), {
             userName,
             phone,
             amount: Number(amount),
-            number
+            number,
+            withdrawLimit: Number(cardData.withdrawLimit) - Number(amount)
         })
         alert('تم التعديل بنجاح')
         setId("")
