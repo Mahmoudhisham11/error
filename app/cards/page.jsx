@@ -26,22 +26,22 @@ function Cards() {
     const [total, setTotl] = useState(0)
 
     useEffect(() => {
-        if(typeof window !== "undefined") {
+        if (typeof window !== "undefined") {
             const storageShop = localStorage.getItem("shop")
             const storageName = localStorage.getItem('userName')
-            if(storageShop) {
+            if (storageShop) {
                 setShop(storageShop)
                 setName(storageName)
             }
 
             let q;
-            if(search !== '') {
+            if (search !== '') {
                 q = query(collection(db, 'cards'), where('shop', '==', storageShop), where('phone', '==', search))
             } else {
                 q = query(collection(db, 'cards'), where('shop', '==', storageShop))
             }
 
-            const unsunbscribe = onSnapshot(q, async (querySnapshot) => {
+            const unsubscribe = onSnapshot(q, async (querySnapshot) => {
                 const cardsArray = []
                 const now = new Date()
                 const currentMonth = now.getMonth()
@@ -49,22 +49,37 @@ function Cards() {
                 for (const docSnap of querySnapshot.docs) {
                     const card = { ...docSnap.data(), id: docSnap.id }
                     const lastReset = card.lastReset ? new Date(card.lastReset).getMonth() : null
+
                     if (lastReset !== currentMonth) {
                         const cardRef = doc(db, 'cards', docSnap.id)
                         await updateDoc(cardRef, {
                             depositLimit: card.originalDepositLimit,
-                            withdrawLimit: card.originalWithdrawLimit,
+                            withdrawLimit: Number(card.originalWithdrawLimit) - Number(card.amount),
                             lastReset: new Date().toISOString()
                         })
                         card.depositLimit = card.originalDepositLimit
-                        card.withdrawLimit = card.originalWithdrawLimit
+                        card.withdrawLimit = Number(card.originalWithdrawLimit) - Number(card.amount)
                         card.lastReset = new Date().toISOString()
+                        if (cardsArray.length === 0) {
+                            const operationsQuery = query(collection(db, 'operations'), where('shop', '==', card.shop))
+                            const operationsSnapshot = await getDocs(operationsQuery)
+
+                            const deletePromises = operationsSnapshot.docs.map(docSnap =>
+                                deleteDoc(doc(db, 'operations', docSnap.id))
+                            )
+
+                            await Promise.all(deletePromises)
+                            console.log("✅ تم حذف كل العمليات الخاصة بالمتجر:", card.shop)
+                        }
                     }
+
                     cardsArray.push(card)
                 }
+
                 setCards(cardsArray)
             })
-            return () => unsunbscribe() 
+
+            return () => unsubscribe()
         }
     }, [search])
 
@@ -73,23 +88,28 @@ function Cards() {
         setTotl(subTotal)
     }, [cards])
 
-    const handleAddPhone = async() => {
-        if(!userName || !phone || !amount || !deposit || !withdraw) {
+    const handleAddPhone = async () => {
+        if (!userName || !phone || !amount || !deposit || !withdraw) {
             alert('برجاء ادخال كل البيانات')
         } else {
+            const amountNum = Number(amount)
+            const withdrawNum = Number(withdraw)
+            const depositNum = Number(deposit)
+
             await addDoc(collection(db, 'cards'), {
                 userName,
                 name,
                 number,
                 phone,
-                amount,
+                amount: amountNum,
                 shop,
-                depositLimit: deposit,
-                withdrawLimit: withdraw,
-                originalDepositLimit: deposit,
-                originalWithdrawLimit: withdraw,
+                depositLimit: depositNum,
+                withdrawLimit: Math.max(0, withdrawNum - amountNum),
+                originalDepositLimit: depositNum,
+                originalWithdrawLimit: withdrawNum,
                 lastReset: new Date().toISOString()
             })
+
             alert("تم اضافة الخط بنجاح")
             setUserName('')
             setNumber('')
@@ -100,11 +120,11 @@ function Cards() {
         }
     }
 
-    const handleDelete = async(id) => {
+    const handleDelete = async (id) => {
         await deleteDoc(doc(db, 'cards', id))
     }
 
-    const handleEdit = async(id, userName, phone, amount, number) => {
+    const handleEdit = async (id, userName, phone, amount, number) => {
         setId(id)
         setUserName(userName)
         setPhone(phone)
@@ -113,11 +133,11 @@ function Cards() {
         setOpenEdit(true)
     }
 
-    const handleUpdate = async() => {
+    const handleUpdate = async () => {
         await updateDoc(doc(db, 'cards', id), {
             userName,
             phone,
-            amount,
+            amount: Number(amount),
             number
         })
         alert('تم التعديل بنجاح')
@@ -130,51 +150,51 @@ function Cards() {
 
     return (
         <div className="main">
-            <div className="boxShadow" style={{display: openEdit ? 'flex' : 'none'}}>
+            <div className="boxShadow" style={{ display: openEdit ? 'flex' : 'none' }}>
                 <div className={styles.editContainer}>
                     <div className={styles.title}>
                         <h2>تعديل الخط</h2>
-                        <button onClick={() => setOpenEdit(false)}><IoMdCloseCircleOutline/></button>
+                        <button onClick={() => setOpenEdit(false)}><IoMdCloseCircleOutline /></button>
                     </div>
                     <div className="inputContainer">
                         <label>اسم المالك :</label>
-                        <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="ادخل اسم المالك"/>
+                        <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="ادخل اسم المالك" />
                     </div>
                     <div className="inputContainer">
                         <label>الرقم القومي :</label>
-                        <input type="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="ادخل الرقم القومي"/>
+                        <input type="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="ادخل الرقم القومي" />
                     </div>
                     <div className="inputContainer">
                         <label>رقم الشريحة :</label>
-                        <input type="number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="ادخل الرقم القومي"/>
+                        <input type="number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="ادخل الرقم القومي" />
                     </div>
                     <div className="inputContainer">
                         <label>الرصيد الحالي :</label>
-                        <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="اخل الرصيد الحالي للخط"/>
+                        <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="اخل الرصيد الحالي للخط" />
                     </div>
                     <button className={styles.editBtn} onClick={handleUpdate}>تعديل الخط</button>
                 </div>
             </div>
-            <SideBar/>
+            <SideBar />
             <div className={styles.main}>
                 <div className={styles.navigation}>
                     <input list="numbers" type="number" placeholder="ابحث عن الرقم" onChange={(e) => setSearch(e.target.value)} />
                     <datalist id="numbers">
                         {cards.map(card => (
-                            <option key={card.id} value={card.phone}/>
+                            <option key={card.id} value={card.phone} />
                         ))}
                     </datalist>
                     {btns.map((btn, index) => (
                         <button
                             key={index}
-                            onClick={() => `${setActive(index)} ${setAdd(index === 1)}`}
-                            style={{backgroundColor: active === index ? 'var(--main-color)' : 'var(--black-color)'}}>{btn}</button>
+                            onClick={() => { setActive(index); setAdd(index === 1) }}
+                            style={{ backgroundColor: active === index ? 'var(--main-color)' : 'var(--black-color)' }}>{btn}</button>
                     ))}
                 </div>
                 <div className={styles.totalContainer}>
-                    <h2>اجمالي الرصيد : {total} جنية</h2>  
+                    <h2>اجمالي الرصيد : {total} جنية</h2>
                 </div>
-                <div className={styles.tableContainer} style={{display: add ? 'none' : 'flex'}}>
+                <div className={styles.tableContainer} style={{ display: add ? 'none' : 'flex' }}>
                     <table>
                         <thead>
                             <tr>
@@ -185,12 +205,12 @@ function Cards() {
                                 <th>يمكن استقبال</th>
                                 <th>الرصيد الحالي</th>
                                 <th>الرقم القومي</th>
-                                {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1", "admin1"].includes(name) ? 
-                                    <th>التفاعل</th>
-                                    : 
-                                    <></>
-                                }
-                                
+                                {[
+                                    "محمد شعبان ايرور 3",
+                                    "محمد شعبان ايرور 2",
+                                    "محمد شعبان ايرور 1",
+                                    "admin1"
+                                ].includes(name) && <th>التفاعل</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -200,59 +220,66 @@ function Cards() {
                                     <td>{card.userName}</td>
                                     <td>{card.phone}</td>
                                     <td>{card.depositLimit}</td>
-                                    <td>{Number(card.withdrawLimit - Number(card.amount))}</td>
+                                    <td>{ Number(card.withdrawLimit || 0)}</td>
+
                                     <td>{card.amount}</td>
                                     <td>{card.number}</td>
-                                    {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1", "admin1"].includes(name) ?        
-                                    <td className="actions">
-                                        <button onClick={() => handleEdit(card.id, card.userName, card.phone, card.amount, card.number)}><FaPen/></button>
-                                        <button onClick={() => handleDelete(card.id)}><FaRegTrashAlt/></button>
-                                    </td>
-                                        :
-                                        <></>
-                                    }
+                                    {[
+                                        "محمد شعبان ايرور 3",
+                                        "محمد شعبان ايرور 2",
+                                        "محمد شعبان ايرور 1",
+                                        "admin1"
+                                    ].includes(name) && (
+                                        <td className="actions">
+                                            <button onClick={() => handleEdit(card.id, card.userName, card.phone, card.amount, card.number)}><FaPen /></button>
+                                            <button onClick={() => handleDelete(card.id)}><FaRegTrashAlt /></button>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-                {["محمد شعبان ايرور 3", "محمد شعبان ايرور 2", "محمد شعبان ايرور 1", "admin1"].includes(name) ?
-                    <div className={styles.addContainer} style={{display: add ? 'flex' : 'none'}}>
+                {[
+                    "محمد شعبان ايرور 3",
+                    "محمد شعبان ايرور 2",
+                    "محمد شعبان ايرور 1",
+                    "admin1"
+                ].includes(name) && (
+                    <div className={styles.addContainer} style={{ display: add ? 'flex' : 'none' }}>
                         <div className={styles.inputDiv}>
                             <div className="inputContainer">
                                 <label>اسم المالك :</label>
-                                <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="ادخل اسم المالك"/>
+                                <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="ادخل اسم المالك" />
                             </div>
                             <div className="inputContainer">
                                 <label>الرقم القومي :</label>
-                                <input type="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="ادخل الرقم القومي"/>
+                                <input type="number" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="ادخل الرقم القومي" />
                             </div>
                         </div>
                         <div className={styles.inputDiv}>
                             <div className="inputContainer">
                                 <label>رقم الشريحة :</label>
-                                <input type="number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="ادخل الرقم القومي"/>
+                                <input type="number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="ادخل الرقم القومي" />
                             </div>
                             <div className="inputContainer">
                                 <label>الرصيد الحالي :</label>
-                                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="اخل الرصيد الحالي للخط"/>
+                                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="اخل الرصيد الحالي للخط" />
                             </div>
                         </div>
                         <div className={styles.inputDiv}>
                             <div className="inputContainer">
                                 <label>ليميت الاستلام :</label>
-                                <input type="number" value={withdraw} onChange={(e) => setWithdraw(e.target.value)} placeholder="ادخل ليميت الاستلام"/>
+                                <input type="number" value={withdraw} onChange={(e) => setWithdraw(e.target.value)} placeholder="ادخل ليميت الاستلام" />
                             </div>
                             <div className="inputContainer">
                                 <label>ليميت الارسال :</label>
-                                <input type="number" value={deposit} onChange={(e) => setDeposit(e.target.value)} placeholder="ادخل ليميت الارسال"/>
+                                <input type="number" value={deposit} onChange={(e) => setDeposit(e.target.value)} placeholder="ادخل ليميت الارسال" />
                             </div>
                         </div>
                         <button onClick={handleAddPhone}>اضف الخط</button>
                     </div>
-                    :
-                    <></>
-                }
+                )}
             </div>
         </div>
     )

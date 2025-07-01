@@ -74,64 +74,85 @@ function Main() {
         }
     };
 
-    const handleOperation = async () => {
-        if (!phone || !amount || !commation) {
-            alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
+const handleOperation = async () => {
+    if (!phone || !amount || !commation) {
+        alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
+        return;
+    }
+
+    const amountNum = Number(amount);
+    const commationNum = Number(commation);
+
+    if (isNaN(amountNum) || isNaN(commationNum) || amountNum <= 0 || commationNum < 0) {
+        alert("يجب أن يكون المبلغ رقمًا صحيحًا موجبًا والعمولة صفر أو أكثر");
+        return;
+    }
+
+    const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+        const cardDoc = querySnapshot.docs[0];
+        const cardRef = doc(db, 'cards', cardDoc.id);
+        const cardData = cardDoc.data();
+
+        let currentAmount = Number(cardData.amount);
+        let currentDepositLimit = Number(cardData.depositLimit);
+        let currentWithdrawLimit = Number(cardData.withdrawLimit);
+
+        if (type === 'ارسال') {
+            if (amountNum > currentAmount) {
+                alert("الرصيد الحالي غير كافي لتنفيذ الإرسال");
+                return;
+            }
+            if (amountNum > currentDepositLimit) {
+                alert("تم تجاوز حد الإرسال المسموح");
+                return;
+            }
+
+            currentAmount -= amountNum;
+            currentDepositLimit -= amountNum;
+
+        } else if (type === 'استلام') {
+            if (amountNum > currentWithdrawLimit) {
+                alert("تم تجاوز حد الاستلام المسموح");
+                return;
+            }
+
+            currentAmount += amountNum;
+            currentWithdrawLimit -= amountNum;
+        }
+
+        // التحقق الأخير لتأكيد أن القيم لا تصبح سالبة
+        if (currentAmount < 0 || currentDepositLimit < 0 || currentWithdrawLimit < 0) {
+            alert("لا يمكن تنفيذ العملية لأن ذلك يؤدي إلى قيم سالبة");
             return;
         }
 
-        const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            const cardDoc = querySnapshot.docs[0];
-            const cardRef = doc(db, 'cards', cardDoc.id);
-            const cardData = cardDoc.data();
+        await addDoc(collection(db, 'operations'), {
+            phone,
+            name,
+            amount: amountNum,
+            commation: commationNum,
+            shop,
+            type,
+            date: new Date().toISOString(),
+            amountBefore: cardData.amount
+        });
 
-            const amountNum = Number(amount);
+        await updateDoc(cardRef, {
+            amount: currentAmount,
+            depositLimit: currentDepositLimit,
+            withdrawLimit: currentWithdrawLimit
+        });
 
-            let newAmount = Number(cardData.amount);
-            let newDeposit = Number(cardData.depositLimit);
-            let newWithdraw = Number(cardData.withdrawLimit);
+        // تفريغ الحقول بعد التنفيذ
+        setPhone('');
+        setAmount('');
+        setCommation('');
+    }
+};
 
-            if (type === 'ارسال') {
-                if (amountNum > newAmount) {
-                    alert("الرصيد غير كافي لتنفيذ عملية الإرسال");
-                    return;
-                }
-                newAmount -= amountNum;
-                newDeposit -= amountNum;
-
-            } else if (type === 'استلام') {
-                newAmount += amountNum;
-                newWithdraw -= amountNum;
-                if (newWithdraw < 0) {
-                    alert("لا يمكن تنفيذ عملية الاستلام، تجاوز الحد المسموح للاستلام");
-                    return;
-                }
-            }
-
-            await addDoc(collection(db, 'operations'), {
-                phone,
-                name,
-                amount,
-                commation,
-                shop,
-                type,
-                date: new Date().toISOString(),
-                amountBefore: cardData.amount
-            });
-
-            await updateDoc(cardRef, {
-                amount: newAmount,
-                depositLimit: newDeposit,
-                withdrawLimit: newWithdraw
-            });
-
-            setPhone('');
-            setAmount('');
-            setCommation('');
-        }
-    };
 
     const handleDeleteOperation = async (id) => {
         try {
@@ -168,20 +189,16 @@ function Main() {
 
             if (operation.type === 'ارسال') {
                 newAmount += operationAmount;
-                newDepositLimit += operationAmount;
             } else if (operation.type === 'استلام') {
                 if (newAmount - operationAmount < 0) {
                     alert("لا يمكن حذف العملية لأن ذلك سيؤدي إلى رصيد سالب.");
                     return;
                 }
                 newAmount -= operationAmount;
-                newWithdrawLimit += operationAmount;
             }
 
             await updateDoc(cardRef, {
                 amount: newAmount,
-                depositLimit: newDepositLimit,
-                withdrawLimit: newWithdrawLimit
             });
 
             await deleteDoc(operationRef);
