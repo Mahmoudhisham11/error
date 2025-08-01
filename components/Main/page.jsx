@@ -9,6 +9,7 @@ import { FaRegTrashAlt } from "react-icons/fa";
 function Main() {
     const [cards, setCards] = useState([]);
     const [operations, setOperations] = useState([]);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [shop, setShop] = useState('');
     const [phone, setPhone] = useState('');
     const [amount, setAmount] = useState('');
@@ -74,84 +75,97 @@ function Main() {
         }
     };
 
-const handleOperation = async () => {
-    if (!phone || !amount || !commation) {
-        alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
-        return;
-    }
 
-    const amountNum = Number(amount);
-    const commationNum = Number(commation);
-
-    if (isNaN(amountNum) || isNaN(commationNum) || amountNum <= 0 || commationNum < 0) {
-        alert("يجب أن يكون المبلغ رقمًا صحيحًا موجبًا والعمولة صفر أو أكثر");
-        return;
-    }
-
-    const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-        const cardDoc = querySnapshot.docs[0];
-        const cardRef = doc(db, 'cards', cardDoc.id);
-        const cardData = cardDoc.data();
-
-        let currentAmount = Number(cardData.amount);
-        let currentDepositLimit = Number(cardData.depositLimit);
-        let currentWithdrawLimit = Number(cardData.withdrawLimit);
-
-        if (type === 'ارسال') {
-            if (amountNum > currentAmount) {
-                alert("الرصيد الحالي غير كافي لتنفيذ الإرسال");
-                return;
-            }
-            if (amountNum > currentDepositLimit) {
-                alert("تم تجاوز حد الإرسال المسموح");
-                return;
-            }
-
-            currentAmount -= amountNum;
-            currentDepositLimit -= amountNum;
-
-        } else if (type === 'استلام') {
-            if (amountNum > currentWithdrawLimit) {
-                alert("تم تجاوز حد الاستلام المسموح");
-                return;
-            }
-
-            currentAmount += amountNum;
-            currentWithdrawLimit -= amountNum;
-        }
-
-        // التحقق الأخير لتأكيد أن القيم لا تصبح سالبة
-        if (currentAmount < 0 || currentDepositLimit < 0 || currentWithdrawLimit < 0) {
-            alert("لا يمكن تنفيذ العملية لأن ذلك يؤدي إلى قيم سالبة");
+// الكود المعدل للدالة:
+    const handleOperation = async () => {
+        if (isProcessing) return; // لو العملية شغالة، تجاهل الضغط
+        
+        if (!phone || !amount || !commation) {
+            alert('برجاء ادخال كل البيانات قبل تنفيذ العملية');
             return;
         }
 
-        await addDoc(collection(db, 'operations'), {
-            phone,
-            name,
-            amount: amountNum,
-            commation: commationNum,
-            shop,
-            type,
-            date: new Date().toISOString(),
-            amountBefore: cardData.amount
-        });
+        const amountNum = Number(amount);
+        const commationNum = Number(commation);
 
-        await updateDoc(cardRef, {
-            amount: currentAmount,
-            depositLimit: currentDepositLimit,
-            withdrawLimit: currentWithdrawLimit
-        });
+        if (isNaN(amountNum) || isNaN(commationNum) || amountNum <= 0 || commationNum < 0) {
+            alert("يجب أن يكون المبلغ رقمًا صحيحًا موجبًا والعمولة صفر أو أكثر");
+            return;
+        }
 
-        // تفريغ الحقول بعد التنفيذ
-        setPhone('');
-        setAmount('');
-        setCommation('');
-    }
-};
+        setIsProcessing(true); // نبدأ تنفيذ العملية
+
+        try {
+            const q = query(collection(db, 'cards'), where('shop', '==', shop), where('phone', '==', phone));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const cardDoc = querySnapshot.docs[0];
+                const cardRef = doc(db, 'cards', cardDoc.id);
+                const cardData = cardDoc.data();
+
+                let currentAmount = Number(cardData.amount);
+                let currentDepositLimit = Number(cardData.depositLimit);
+                let currentWithdrawLimit = Number(cardData.withdrawLimit);
+
+                if (type === 'ارسال') {
+                    if (amountNum > currentAmount) {
+                        alert("الرصيد الحالي غير كافي لتنفيذ الإرسال");
+                        return;
+                    }
+                    if (amountNum > currentDepositLimit) {
+                        alert("تم تجاوز حد الإرسال المسموح");
+                        return;
+                    }
+
+                    currentAmount -= amountNum;
+                    currentDepositLimit -= amountNum;
+
+                } else if (type === 'استلام') {
+                    if (amountNum > currentWithdrawLimit) {
+                        alert("تم تجاوز حد الاستلام المسموح");
+                        return;
+                    }
+
+                    currentAmount += amountNum;
+                    currentWithdrawLimit -= amountNum;
+                }
+
+                if (currentAmount < 0 || currentDepositLimit < 0 || currentWithdrawLimit < 0) {
+                    alert("لا يمكن تنفيذ العملية لأن ذلك يؤدي إلى قيم سالبة");
+                    return;
+                }
+
+                await addDoc(collection(db, 'operations'), {
+                    phone,
+                    name,
+                    amount: amountNum,
+                    commation: commationNum,
+                    shop,
+                    type,
+                    date: new Date().toISOString(),
+                    amountBefore: cardData.amount
+                });
+
+                await updateDoc(cardRef, {
+                    amount: currentAmount,
+                    depositLimit: currentDepositLimit,
+                    withdrawLimit: currentWithdrawLimit
+                });
+
+                // تفريغ الحقول
+                setPhone('');
+                setAmount('');
+                setCommation('');
+            }
+        } catch (error) {
+            console.error("خطأ أثناء تنفيذ العملية:", error);
+            alert("حدث خطأ أثناء تنفيذ العملية");
+        } finally {
+            setIsProcessing(false); // إعادة تفعيل الزر بعد انتهاء العملية
+        }
+    };
+
 
 
     const handleDeleteOperation = async (id) => {
@@ -189,16 +203,20 @@ const handleOperation = async () => {
 
             if (operation.type === 'ارسال') {
                 newAmount += operationAmount;
+                newDepositLimit += operationAmount
             } else if (operation.type === 'استلام') {
                 if (newAmount - operationAmount < 0) {
                     alert("لا يمكن حذف العملية لأن ذلك سيؤدي إلى رصيد سالب.");
                     return;
                 }
                 newAmount -= operationAmount;
+                newWithdrawLimit += operationAmount
             }
 
             await updateDoc(cardRef, {
                 amount: newAmount,
+                withdrawLimit: newWithdrawLimit,
+                depositLimit: newDepositLimit
             });
 
             await deleteDoc(operationRef);
@@ -241,7 +259,13 @@ const handleOperation = async () => {
             <SideBar />
             <div className={styles.mainContainer}>
                 <div className={styles.btnsContainer}>
-                    <button onClick={handleOperation}>{type === "ارسال" ? "ارسال رصيد" : "استلام رصيد"}</button>
+                    <button onClick={handleOperation} disabled={isProcessing}>
+                        {isProcessing
+                            ? "جارٍ التنفيذ..."
+                            : type === "ارسال"
+                            ? "ارسال رصيد"
+                            : "استلام رصيد"}
+                    </button>
                     <button onClick={handleDeleteDay}>تقفيل اليوم</button>
                 </div>
                 <div className={styles.content}>
