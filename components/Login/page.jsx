@@ -2,7 +2,7 @@
 import styles from "./styles.module.css";
 import Image from "next/image";
 import logo from "../../public/images/logo.png"
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { db } from "@/app/firebase";
 import { addDoc, collection, doc, getDocs, query, where } from "firebase/firestore";
 
@@ -43,43 +43,112 @@ function Login() {
             alert('المستخدم موجود بالفعل')
         }
     }
+    useEffect(() => {
+    const checkUserActiveStatus = async () => {
+        const savedUserName = localStorage.getItem("userName");
+        const savedShop = localStorage.getItem("shop");
+
+        if (!savedUserName || !savedShop) return;
+
+        try {
+            const q = query(
+                collection(db, "users"),
+                where("userName", "==", savedUserName.toLowerCase().trim())
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const userDoc = querySnapshot.docs[0];
+                const userData = userDoc.data();
+
+                // تحقق من shop
+                if (userData.shop.toLowerCase().trim() !== savedShop.toLowerCase().trim()) {
+                    localStorage.clear();
+                    window.location.reload();
+                    return;
+                }
+
+                // تحقق من active
+                if (userData.permissions?.active !== true) {
+                    alert("تم تعطيل الحساب");
+                    localStorage.clear();
+                    window.location.reload();
+                }
+            }
+        } catch (error) {
+            console.error("Error checking user active status:", error);
+        }
+    };
+
+    checkUserActiveStatus();
+}, []);
+
 
     // HANDLE LOGIN FUNCTION
-    const handleLogin = async() => {
-                if(!userName) {
-            alert("يجب ادخال اسم المستخدم")
-            return
+    const handleLogin = async () => {
+        if (!userName) {
+            alert("يجب ادخال اسم المستخدم");
+            return;
         }
-        if(!password) {
-            alert("يجب ادخال كلمة المرور")
-            return
+        if (!password) {
+            alert("يجب ادخال كلمة المرور");
+            return;
         }
-        if(!shop) {
-            alert("يجب ادخال اسم المحل")
-            return
+        if (!shop) {
+            alert("يجب ادخال اسم المحل");
+            return;
         }
-        const q = query(collection(db, 'users'), where('userName', '==', userName.toLowerCase().trim()))
-        const querySnapshot = await getDocs(q)
-        if(querySnapshot.empty) {
-            alert('اسم المستخدم غير صحيح')
-        }else {
-            const userDoc = querySnapshot.docs[0] 
-            const userData = userDoc.data()
-            if(userData.password !== password) {
-                alert("كلمة المرور غير صحيحة")
-            }else {
-                    if(userData.permissions.active !== true) {
-                        alert('يجب تفعيل الحساب برجاء التواصل مع المطور')
-                    }else {
-                        if(typeof window !== 'undefinde') {
-                            localStorage.setItem('userName', userName)
-                            localStorage.setItem('shop', shop)
-                            window.location.reload()
-                        }
-                    }
+
+        try {
+            // التأكد من وجود المستخدم
+            const q = query(
+            collection(db, "users"),
+            where("userName", "==", userName.toLowerCase().trim())
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+            alert("اسم المستخدم غير صحيح");
+            return;
             }
+
+            const userDoc = querySnapshot.docs[0];
+            const userData = userDoc.data();
+
+            // التأكد من كلمة المرور
+            if (userData.password !== password) {
+            alert("كلمة المرور غير صحيحة");
+            return;
+            }
+
+            // التأكد من وجود shop مطابق
+            if (userData.shop.toLowerCase().trim() !== shop.toLowerCase().trim()) {
+            alert("اسم المحل غير صحيح أو لا يطابق اسم المحل المرتبط بالحساب");
+            return;
+            }
+
+            // التحقق من حالة التفعيل
+            if (userData.permissions?.active !== true) {
+            alert("تم تعطيل الحساب، برجاء التواصل مع المطور");
+            localStorage.clear(); // تسجيل خروج
+            if (typeof window !== "undefined") {
+                window.location.reload();
+            }
+            return;
+            }
+
+            // حفظ البيانات في localStorage
+            if (typeof window !== "undefined") {
+            localStorage.setItem("userName", userName);
+            localStorage.setItem("shop", shop);
+            window.location.reload();
+            }
+        } catch (error) {
+            console.error("Login error:", error);
+            alert("حدث خطأ أثناء تسجيل الدخول");
         }
-    }
+    };
+
 
     return(
         <div className={styles.loginContainer}>

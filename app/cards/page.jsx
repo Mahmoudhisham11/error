@@ -4,156 +4,167 @@ import styles from "./styles.module.css";
 import { useEffect, useState } from "react";
 import { FaRegTrashAlt, FaPen } from "react-icons/fa";
 import { IoMdCloseCircleOutline } from "react-icons/io";
-import { addDoc, collection, deleteDoc, doc, onSnapshot, query, updateDoc, where, getDocs } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "../firebase";
 
 function Cards() {
-    const btns = ['كل الخطوط', 'اضف خط جديد']
-    const [cards, setCards] = useState([])
-    const [add, setAdd] = useState(false)
-    const [openEdit, setOpenEdit] = useState(false)
-    const [active, setActive] = useState(0)
-    const [name, setName] = useState('')
-    const [id, setId] = useState('')
-    const [userName, setUserName] = useState('')
-    const [number, setNumber] = useState('')
-    const [phone, setPhone] = useState('')
-    const [amount, setAmount] = useState('')
-    const [shop, setShop] = useState('')
-    const [search, setSearch] = useState('')
-    const [deposit, setDeposit] = useState('')
-    const [withdraw, setWithdraw] = useState('')
-    const [total, setTotl] = useState(0)
+  const btns = ["كل الخطوط", "اضف خط جديد"];
+  const [cards, setCards] = useState([]);
+  const [add, setAdd] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [active, setActive] = useState(0);
+  const [name, setName] = useState("");
+  const [id, setId] = useState("");
+  const [userName, setUserName] = useState("");
+  const [number, setNumber] = useState("");
+  const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState("");
+  const [shop, setShop] = useState("");
+  const [search, setSearch] = useState("");
+  const [deposit, setDeposit] = useState("");
+  const [withdraw, setWithdraw] = useState("");
+  const [total, setTotl] = useState(0);
 
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const storageShop = localStorage.getItem("shop")
-            const storageName = localStorage.getItem('userName')
-            if (storageShop) {
-                setShop(storageShop)
-                setName(storageName)
-            }
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storageShop = localStorage.getItem("shop");
+      const storageName = localStorage.getItem("userName");
+      if (storageShop) {
+        setShop(storageShop);
+        setName(storageName);
+      }
 
-            let q;
-            if (search !== '') {
-                q = query(collection(db, 'cards'), where('shop', '==', storageShop), where('phone', '==', search))
-            } else {
-                q = query(collection(db, 'cards'), where('shop', '==', storageShop))
-            }
+      let q;
+      if (search !== '') {
+        q = query(collection(db, 'cards'), where('shop', '==', storageShop), where('phone', '==', search));
+      } else {
+        q = query(collection(db, 'cards'), where('shop', '==', storageShop));
+      }
 
-            const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-                const cardsArray = []
-                const now = new Date()
-                const currentMonth = now.getMonth()
+      const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        const cardsArray = [];
+        const now = new Date();
+        const currentMonth = now.getMonth();
 
-                for (const docSnap of querySnapshot.docs) {
-                    const card = { ...docSnap.data(), id: docSnap.id }
-                    const lastReset = card.lastReset ? new Date(card.lastReset).getMonth() : null
+        for (const docSnap of querySnapshot.docs) {
+          const card = { ...docSnap.data(), id: docSnap.id };
 
-                    if (lastReset !== currentMonth) {
-                        const cardRef = doc(db, 'cards', docSnap.id)
-                        await updateDoc(cardRef, {
-                            depositLimit: card.originalDepositLimit,
-                            withdrawLimit: Number(card.originalWithdrawLimit) - Number(card.amount),
-                            lastReset: new Date().toISOString()
-                        })
-                        card.depositLimit = card.originalDepositLimit
-                        card.withdrawLimit = Number(card.originalWithdrawLimit) - Number(card.amount)
-                        card.lastReset = new Date().toISOString()
-                        if (cardsArray.length === 0) {
-                            const operationsQuery = query(collection(db, 'operations'), where('shop', '==', card.shop))
-                            const operationsSnapshot = await getDocs(operationsQuery)
+          // اكتمال البيانات القديمة الناقصة
+          if (!card.originalWithdrawLimit) {
+            card.originalWithdrawLimit = Number(card.withdrawLimit) + Number(card.amount || 0);
+            await updateDoc(doc(db, "cards", card.id), {
+              originalWithdrawLimit: card.originalWithdrawLimit,
+            });
+          }
 
-                            const deletePromises = operationsSnapshot.docs.map(docSnap =>
-                                deleteDoc(doc(db, 'operations', docSnap.id))
-                            )
+          if (!card.originalDepositLimit) {
+            card.originalDepositLimit = Number(card.depositLimit || 0);
+            await updateDoc(doc(db, "cards", card.id), {
+              originalDepositLimit: card.originalDepositLimit,
+            });
+          }
 
-                            await Promise.all(deletePromises)
-                            console.log("✅ تم حذف كل العمليات الخاصة بالمتجر:", card.shop)
-                        }
-                    }
+          // إعادة ضبط الليميت الشهري بدون حذف العمليات
+          const lastReset = card.lastReset ? new Date(card.lastReset).getMonth() : null;
+          if (lastReset !== currentMonth) {
+            const cardRef = doc(db, "cards", docSnap.id);
+            await updateDoc(cardRef, {
+              depositLimit: card.originalDepositLimit,
+              withdrawLimit: Math.max(0, Number(card.originalWithdrawLimit) - Number(card.amount || 0)),
+              lastReset: new Date().toISOString(),
+            });
+            card.depositLimit = card.originalDepositLimit;
+            card.withdrawLimit = card.originalWithdrawLimit;
+            card.lastReset = new Date().toISOString();
+          }
 
-                    cardsArray.push(card)
-                }
-
-                setCards(cardsArray)
-            })
-
-            return () => unsubscribe()
+          cardsArray.push(card);
         }
-    }, [search])
 
-    useEffect(() => {
-        const subTotal = cards.reduce((acc, card) => acc + Number(card.amount), 0)
-        setTotl(subTotal)
-    }, [cards])
+        setCards(cardsArray);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [search]);
+
+  useEffect(() => {
+    const subTotal = cards.reduce((acc, card) => acc + Number(card.amount), 0);
+    setTotl(subTotal);
+  }, [cards]);
 
     const handleAddPhone = async () => {
-        if (!userName || !phone || !amount || !deposit || !withdraw) {
-            alert('برجاء ادخال كل البيانات')
-        } else {
-            const amountNum = Number(amount)
-            const withdrawNum = Number(withdraw)
-            const depositNum = Number(deposit)
+    if (!userName || !phone || !amount || !deposit || !withdraw) {
+        alert("برجاء ادخال كل البيانات");
+    } else {
+        const amountNum = Number(amount);
+        const withdrawNum = Number(withdraw);
+        const depositNum = Number(deposit);
 
-            await addDoc(collection(db, 'cards'), {
-                userName,
-                name,
-                number,
-                phone,
-                amount: amountNum,
-                shop,
-                depositLimit: depositNum,
-                withdrawLimit: Math.max(0, withdrawNum - amountNum),
-                originalDepositLimit: depositNum,
-                originalWithdrawLimit: withdrawNum,
-                lastReset: new Date().toISOString()
-            })
+        await addDoc(collection(db, "cards"), {
+        userName,
+        name,
+        number,
+        phone,
+        amount: amountNum,
+        shop,
+        depositLimit: depositNum,
+        withdrawLimit: Math.max(0, withdrawNum - amountNum), // ✅ الحل هنا
+        originalDepositLimit: depositNum,
+        originalWithdrawLimit: withdrawNum,
+        lastReset: new Date().toISOString(),
+        });
 
-            alert("تم اضافة الخط بنجاح")
-            setUserName('')
-            setNumber('')
-            setPhone('')
-            setAmount('')
-            setWithdraw('')
-            setDeposit('')
-        }
+        alert("تم اضافة الخط بنجاح");
+        setUserName("");
+        setNumber("");
+        setPhone("");
+        setAmount("");
+        setWithdraw("");
+        setDeposit("");
     }
+    };
 
-    const handleDelete = async (id) => {
-        await deleteDoc(doc(db, 'cards', id))
-    }
 
-    const handleEdit = async (id, userName, phone, amount, number) => {
-        setId(id)
-        setUserName(userName)
-        setPhone(phone)
-        setAmount(amount)
-        setNumber(number)
-        setOpenEdit(true)
-    }
+  const handleDelete = async (id) => {
+    await deleteDoc(doc(db, "cards", id));
+  };
 
-    const handleUpdate = async () => {
-        const q = query(collection(db, 'cards'), where('shop', '==', shop))
-        const querySnapshot = await getDocs(q)
-        const cardDoc = querySnapshot.docs[0]
-        const cardData = cardDoc.data()
-        await updateDoc(doc(db, 'cards', id), {
-            userName,
-            phone,
-            amount: Number(amount),
-            number,
-            withdrawLimit: Number(cardData.withdrawLimit) - Number(amount)
-        })
-        alert('تم التعديل بنجاح')
-        setId("")
-        setUserName("")
-        setPhone("")
-        setAmount("")
-        setNumber("")
-    }
+  const handleEdit = async (id, userName, phone, amount, number) => {
+    setId(id);
+    setUserName(userName);
+    setPhone(phone);
+    setAmount(amount);
+    setNumber(number);
+    setOpenEdit(true);
+  };
 
-    return (
+  const handleUpdate = async () => {
+    await updateDoc(doc(db, "cards", id), {
+      userName,
+      phone,
+      amount: Number(amount),
+      number,
+    });
+    alert("تم التعديل بنجاح");
+    setId("");
+    setUserName("");
+    setPhone("");
+    setAmount("");
+    setNumber("");
+  };
+
+  return(
         <div className="main">
             <div className="boxShadow" style={{ display: openEdit ? 'flex' : 'none' }}>
                 <div className={styles.editContainer}>
@@ -287,7 +298,7 @@ function Cards() {
                 )}
             </div>
         </div>
-    )
+  );
 }
 
 export default Cards;
