@@ -232,7 +232,7 @@ function Main() {
         const confirmDelete = window.confirm("هل تريد تقفيل اليوم");
         if (!confirmDelete) return;
 
-        const querySnapshot = await getDocs(collection(db, "operations"));
+        const querySnapshot = await getDocs(query(collection(db, "operations"), where('shop', '==', shop)));
 
         const addToReports = querySnapshot.docs.map((docSnap) => {
             const data = docSnap.data();
