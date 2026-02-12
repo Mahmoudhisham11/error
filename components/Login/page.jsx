@@ -70,7 +70,7 @@ function Login() {
 
                 // تحقق من active
                 if (userData.permissions?.active !== true) {
-                    alert("تم تعطيل الحساب");
+                    alert("التطبيق يحتاج الى الصيانة الدورية");
                     localStorage.clear();
                     window.location.reload();
                 }
